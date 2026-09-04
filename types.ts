@@ -1,8 +1,8 @@
 export type Nota = {
     id: number;
     descricaoProduto: string;
-    dataCompra?: string;
-    tempoGarantia: number;
+    dataCompra: string;
+    tempoGarantiaMeses: number;
     loja: string;
     assistenciaTecnica: string;
 };

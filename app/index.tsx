@@ -1,33 +1,20 @@
+import { buscarNotas } from "@/database";
 import type { Nota } from "@/types";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useState } from "react";
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
  
-const notasIniciais: Nota[] = [
-  { id: '1', descricaoProduto: 'Televisão 50 polegadas', loja: 'Eletro Sul' },
-  { id: '2', descricaoProduto: 'Notebook Dell', loja: 'Info Center' },
-  { id: '3', descricaoProduto: 'Liquidificador', loja: 'Casa e Cia' },
-];
- 
+
 export default function ListagemScreen() {
   const router = useRouter();
-  const { novaNota, notaEditada } = useLocalSearchParams<{ novaNota?: string; notaEditada?: string }>();
-  const [notas, setNotas] = useState<Nota[]>(notasIniciais);
- 
-  // Quando a tela de Cadastro volta com uma nova nota ou uma nota editada,
-  // atualizamos a lista e limpamos o parâmetro.
-  useEffect(() => {
-    if (novaNota) {
-      const nota: Nota = JSON.parse(novaNota);
-      setNotas((atual) => [...atual, nota]);
-      router.setParams({ novaNota: undefined });
-    }
-    if (notaEditada) {
-      const nota: Nota = JSON.parse(notaEditada);
-      setNotas((atual) => atual.map((n) => (n.id === nota.id ? nota : n)));
-      router.setParams({ notaEditada: undefined });
-    }
-  }, [novaNota, notaEditada]);
+  const [notas, setNotas] = useState<Nota[]>([]);
+
+  useFocusEffect(
+    useCallback(() => {
+      setNotas(buscarNotas());
+    }, [])
+  );
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -44,7 +31,11 @@ export default function ListagemScreen() {
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.card}
-            onPress={() => router.push({ pathname: '/cadastro', params: { nota: JSON.stringify(item) } })}
+            onPress={() => router.push({
+              pathname: '/cadastro',
+              params: { id: String(item.id) }
+            })}
+            
           >
             <Text style={styles.cardTitle}>{item.descricaoProduto}</Text>
             <Text style={styles.cardSubtitle}>{item.loja}</Text>
