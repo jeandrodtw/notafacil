@@ -3,10 +3,11 @@ import type { Nota } from "@/types";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
- 
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function ListagemScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [notas, setNotas] = useState<Nota[]>([]);
 
   useFocusEffect(
@@ -17,13 +18,13 @@ export default function ListagemScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <Text style={styles.headerTitle}>NotaFácil</Text>
         <TouchableOpacity onPress={() => router.push('/cadastro')}>
           <Text style={styles.addButton}>+</Text>
         </TouchableOpacity>
       </View>
- 
+
       <FlatList
         data={notas}
         keyExtractor={(item) => item.id}
@@ -35,7 +36,6 @@ export default function ListagemScreen() {
               pathname: '/cadastro',
               params: { id: String(item.id) }
             })}
-            
           >
             <Text style={styles.cardTitle}>{item.descricaoProduto}</Text>
             <Text style={styles.cardSubtitle}>{item.loja}</Text>
@@ -45,15 +45,15 @@ export default function ListagemScreen() {
     </View>
   );
 }
- 
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0E1B33' },
   header: {
-    backgroundColor: '#D85A30', padding: 16,
+    backgroundColor: '#D85A30', paddingHorizontal: 16, paddingBottom: 16,
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
   },
   headerTitle: { color: '#FAECE7', fontSize: 20, fontWeight: 'bold' },
-  addButton: { color: '#FAECE7', fontSize: 26, fontWeight: 'bold' },
+  addButton: { color: '#FAECE7', fontSize: 26, fontWeight: 'bold', marginLeft: 4 },
   card: {
     backgroundColor: '#16264A', borderRadius: 10, padding: 14, marginBottom: 10,
     borderWidth: 1, borderColor: '#223564',
