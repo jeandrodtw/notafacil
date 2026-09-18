@@ -8,6 +8,7 @@ export function initDatabase() {
     CREATE TABLE IF NOT EXISTS notas (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       descricaoProduto TEXT NOT NULL,
+      fotoUri TEXT,
       dataCompra TEXT,
       tempoGarantiaMeses INTEGER,
       loja TEXT,
@@ -16,17 +17,16 @@ export function initDatabase() {
   `);
 }
 export function inserirNota(nota: NotaFormulario) {
-    db.runSync(
-      `INSERT INTO notas
-       (descricaoProduto, dataCompra,
-        tempoGarantiaMeses, loja,
-        assistenciaTecnica)
-       VALUES (?, ?, ?, ?, ?);`,
-      [nota.descricaoProduto, nota.dataCompra,
-       nota.tempoGarantiaMeses, nota.loja,
-       nota.assistenciaTecnica]
-    );
-  }
+  db.runSync(
+    `INSERT INTO notas
+     (descricaoProduto, fotoUri, dataCompra,
+      tempoGarantiaMeses, loja, assistenciaTecnica)
+     VALUES (?, ?, ?, ?, ?, ?);`,
+    [nota.descricaoProduto, nota.fotoUri,
+     nota.dataCompra, nota.tempoGarantiaMeses,
+     nota.loja, nota.assistenciaTecnica]
+  );
+}
 
   export function buscarNotas(): Nota[] {
     return db.getAllSync<Nota>(
@@ -41,17 +41,20 @@ export function inserirNota(nota: NotaFormulario) {
     );
   }
    
-  export function atualizarNota(id: number, nota: NotaFormulario) {
-    db.runSync(
-      `UPDATE notas SET
-         descricaoProduto = ?, dataCompra = ?,
-         tempoGarantiaMeses = ?, loja = ?,
-         assistenciaTecnica = ?
-       WHERE id = ?;`,
-      [nota.descricaoProduto, nota.dataCompra, nota.tempoGarantiaMeses,
-       nota.loja, nota.assistenciaTecnica, id]
-    );
-  }
+ export function atualizarNota(
+  id: number, nota: NotaFormulario
+) {
+  db.runSync(
+    `UPDATE notas SET
+       descricaoProduto = ?, fotoUri = ?,
+       dataCompra = ?, tempoGarantiaMeses = ?,
+       loja = ?, assistenciaTecnica = ?
+     WHERE id = ?;`,
+    [nota.descricaoProduto, nota.fotoUri,
+     nota.dataCompra, nota.tempoGarantiaMeses,
+     nota.loja, nota.assistenciaTecnica, id]
+  );
+}
   
   
   

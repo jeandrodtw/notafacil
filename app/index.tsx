@@ -1,5 +1,6 @@
 import { buscarNotas } from "@/database";
 import type { Nota } from "@/types";
+import { calcularVencimento, statusGarantia } from "@/utils/garantia";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -27,20 +28,30 @@ export default function ListagemScreen() {
 
       <FlatList
         data={notas}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => String(item.id)}
         contentContainerStyle={{ padding: 12 }}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.card}
-            onPress={() => router.push({
-              pathname: '/cadastro',
-              params: { id: String(item.id) }
-            })}
-          >
-            <Text style={styles.cardTitle}>{item.descricaoProduto}</Text>
-            <Text style={styles.cardSubtitle}>{item.loja}</Text>
-          </TouchableOpacity>
-        )}
+        renderItem={({ item }) => {
+          const vencimento = calcularVencimento(item.dataCompra, item.tempoGarantiaMeses);
+          const status = statusGarantia(vencimento);
+
+          return (
+            <TouchableOpacity
+              style={styles.card}
+              onPress={() => router.push({
+                pathname: '/detalhes',
+                params: { id: String(item.id) }
+              })}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cardTitle}>{item.descricaoProduto}</Text>
+                <Text style={styles.cardSubtitle}>{item.loja}</Text>
+              </View>
+              <View style={[styles.badge, { backgroundColor: status.fundo }]}>
+                <Text style={[styles.badgeText, { color: status.cor }]}>{status.texto}</Text>
+              </View>
+            </TouchableOpacity>
+          );
+        }}
       />
     </View>
   );
@@ -57,7 +68,10 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: '#16264A', borderRadius: 10, padding: 14, marginBottom: 10,
     borderWidth: 1, borderColor: '#223564',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   },
   cardTitle: { color: '#F0F2FA', fontSize: 15, fontWeight: 'bold' },
   cardSubtitle: { color: '#98A4C8', fontSize: 13, marginTop: 2 },
+  badge: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 8, marginLeft: 8 },
+  badgeText: { fontSize: 11, fontWeight: 'bold' },
 });

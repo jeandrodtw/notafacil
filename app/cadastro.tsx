@@ -1,7 +1,8 @@
 import { atualizarNota, buscarNotaPorId, inserirNota } from "@/database";
+import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function CadastroScreen() {
@@ -11,9 +12,10 @@ export default function CadastroScreen() {
   const notaId = id ? Number(id) : null;
 
   const [descricaoProduto, setDescricaoProduto] = useState('');
+  const [fotoUri, setFotoUri] = useState<string | null>(null);
   const [dataCompra, setDataCompra] = useState('');
-  const [loja, setLoja] = useState('');
   const [tempoGarantiaMeses, setTempoGarantiaMeses] = useState('');
+  const [loja, setLoja] = useState('');
   const [assistenciaTecnica, setAssistenciaTecnica] = useState('');
 
   useEffect(() => {
@@ -21,6 +23,7 @@ export default function CadastroScreen() {
       const nota = buscarNotaPorId(notaId);
       if (nota) {
         setDescricaoProduto(nota.descricaoProduto);
+        setFotoUri(nota.fotoUri);
         setDataCompra(nota.dataCompra);
         setTempoGarantiaMeses(String(nota.tempoGarantiaMeses));
         setLoja(nota.loja);
@@ -29,6 +32,18 @@ export default function CadastroScreen() {
     }
   }, [notaId]);
 
+  async function tirarFoto() {
+    const permissao = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permissao.granted) {
+      alert('É preciso permitir o acesso à câmera.');
+      return;
+    }
+    const resultado = await ImagePicker.launchCameraAsync({ quality: 0.6 });
+    if (!resultado.canceled) {
+      setFotoUri(resultado.assets[0].uri);
+    }
+  }
+
   function salvarNota() {
     if (!descricaoProduto || !loja) {
       alert('Preencha ao menos a descrição e a loja.');
@@ -36,6 +51,7 @@ export default function CadastroScreen() {
     }
     const dados = {
       descricaoProduto,
+      fotoUri,
       dataCompra,
       tempoGarantiaMeses: Number(tempoGarantiaMeses) || 0,
       loja,
@@ -59,6 +75,14 @@ export default function CadastroScreen() {
       </View>
 
       <View style={{ padding: 16 }}>
+        <TouchableOpacity style={styles.photoBox} onPress={tirarFoto}>
+          {fotoUri ? (
+            <Image source={{ uri: fotoUri }} style={styles.photoPreview} />
+          ) : (
+            <Text style={styles.photoText}>Fotografar nota fiscal</Text>
+          )}
+        </TouchableOpacity>
+
         <Text style={styles.label}>Descrição do produto</Text>
         <TextInput style={styles.input} value={descricaoProduto} onChangeText={setDescricaoProduto}
           placeholder='Ex: Televisão 50 polegadas' placeholderTextColor='#5C6AA0' />
@@ -95,6 +119,13 @@ const styles = StyleSheet.create({
   },
   backButton: { color: '#FAECE7', fontSize: 20, fontWeight: 'bold', marginRight: 8 },
   headerTitle: { color: '#FAECE7', fontSize: 20, fontWeight: 'bold' },
+  photoBox: {
+    height: 140, borderRadius: 10, borderWidth: 1, borderColor: '#223564',
+    borderStyle: 'dashed', backgroundColor: '#16264A',
+    alignItems: 'center', justifyContent: 'center', marginBottom: 16, overflow: 'hidden',
+  },
+  photoPreview: { width: '100%', height: '100%' },
+  photoText: { color: '#5C6AA0', fontSize: 14 },
   label: { color: '#98A4C8', fontSize: 13, marginTop: 12, marginBottom: 4 },
   input: {
     borderWidth: 1, borderColor: '#223564', borderRadius: 8,
