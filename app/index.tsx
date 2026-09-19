@@ -47,7 +47,7 @@ export default function ListagemScreen() {
 }
  
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0E1B33' },
+  container: { flex: 1, backgroundColor: '#0E1B33', marginTop: 25 },
   header: {
     backgroundColor: '#D85A30', padding: 16,
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',

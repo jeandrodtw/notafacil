@@ -8,6 +8,7 @@ export function initDatabase() {
     CREATE TABLE IF NOT EXISTS notas (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       descricaoProduto TEXT NOT NULL,
+      fotoUri TEXT,
       dataCompra TEXT,
       tempoGarantiaMeses INTEGER,
       loja TEXT,
@@ -18,11 +19,11 @@ export function initDatabase() {
 export function inserirNota(nota: NotaFormulario) {
     db.runSync(
       `INSERT INTO notas
-       (descricaoProduto, dataCompra,
+       (descricaoProduto, fotoUri, dataCompra,
         tempoGarantiaMeses, loja,
         assistenciaTecnica)
-       VALUES (?, ?, ?, ?, ?);`,
-      [nota.descricaoProduto, nota.dataCompra,
+       VALUES (?, ?, ?, ?, ?, ?);`,
+      [nota.descricaoProduto, nota.fotoUri, nota.dataCompra,
        nota.tempoGarantiaMeses, nota.loja,
        nota.assistenciaTecnica]
     );
@@ -44,11 +45,11 @@ export function inserirNota(nota: NotaFormulario) {
   export function atualizarNota(id: number, nota: NotaFormulario) {
     db.runSync(
       `UPDATE notas SET
-         descricaoProduto = ?, dataCompra = ?,
+         descricaoProduto = ?, fotoUri = ?, dataCompra = ?,
          tempoGarantiaMeses = ?, loja = ?,
          assistenciaTecnica = ?
        WHERE id = ?;`,
-      [nota.descricaoProduto, nota.dataCompra, nota.tempoGarantiaMeses,
+      [nota.descricaoProduto, nota.fotoUri, nota.dataCompra, nota.tempoGarantiaMeses,
        nota.loja, nota.assistenciaTecnica, id]
     );
   }
