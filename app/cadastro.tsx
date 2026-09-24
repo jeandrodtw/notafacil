@@ -69,7 +69,7 @@ export default function CadastroScreen() {
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.backButton}>{'< '}</Text>
+          <Text style={styles.backButton}>{' < '}</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{notaId ? 'Editar nota' : 'Nova nota'}</Text>
       </View>
