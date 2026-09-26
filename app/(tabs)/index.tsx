@@ -21,9 +21,6 @@ export default function ListagemScreen() {
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <Text style={styles.headerTitle}>NotaFácil</Text>
-        <TouchableOpacity onPress={() => router.push('/cadastro')}>
-          <Text style={styles.addButton}>+</Text>
-        </TouchableOpacity>
       </View>
 
       <FlatList
