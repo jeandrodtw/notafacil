@@ -1,8 +1,8 @@
-import { atualizarNota, buscarNotaPorId, inserirNota } from "@/database";
+import { atualizarNota, buscarNotaPorId, inserirNota } from "@/notas";
 import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function CadastroScreen() {
@@ -17,19 +17,20 @@ export default function CadastroScreen() {
   const [tempoGarantiaMeses, setTempoGarantiaMeses] = useState('');
   const [loja, setLoja] = useState('');
   const [assistenciaTecnica, setAssistenciaTecnica] = useState('');
+  const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
-    if (notaId) {
-      const nota = buscarNotaPorId(notaId);
-      if (nota) {
+    if (!notaId) return;
+    buscarNotaPorId(notaId)
+      .then((nota) => {
         setDescricaoProduto(nota.descricaoProduto);
         setFotoUri(nota.fotoUri);
         setDataCompra(nota.dataCompra);
         setTempoGarantiaMeses(String(nota.tempoGarantiaMeses));
         setLoja(nota.loja);
         setAssistenciaTecnica(nota.assistenciaTecnica);
-      }
-    }
+      })
+      .catch((e) => alert(e.message));
   }, [notaId]);
 
   async function tirarFoto() {
@@ -44,9 +45,9 @@ export default function CadastroScreen() {
     }
   }
 
-  function salvarNota() {
-    if (!descricaoProduto || !loja) {
-      alert('Preencha ao menos a descrição e a loja.');
+  async function salvarNota() {
+    if (!descricaoProduto || !loja || !dataCompra) {
+      alert('Preencha ao menos a descrição, a data da compra e a loja.');
       return;
     }
     const dados = {
@@ -57,12 +58,20 @@ export default function CadastroScreen() {
       loja,
       assistenciaTecnica,
     };
-    if (notaId) {
-      atualizarNota(notaId, dados);
-    } else {
-      inserirNota(dados);
+    setSalvando(true);
+    try {
+      if (notaId) {
+        await atualizarNota(notaId, dados);
+      } else {
+        await inserirNota(dados);
+      }
+      router.back();
+    } catch (e: any) {
+      // Mensagem de validação vinda da API (ex.: data inválida)
+      alert(e.message);
+    } finally {
+      setSalvando(false);
     }
-    router.back();
   }
 
   return (
@@ -103,8 +112,16 @@ export default function CadastroScreen() {
         <TextInput style={styles.input} value={assistenciaTecnica} onChangeText={setAssistenciaTecnica}
           placeholder='Endereço ou contato' placeholderTextColor='#5C6AA0' />
 
-        <TouchableOpacity style={styles.saveButton} onPress={salvarNota}>
-          <Text style={styles.saveButtonText}>{notaId ? 'Salvar alterações' : 'Salvar nota'}</Text>
+        <TouchableOpacity
+          style={[styles.saveButton, salvando && { opacity: 0.6 }]}
+          onPress={salvarNota}
+          disabled={salvando}
+        >
+          {salvando ? (
+            <ActivityIndicator color="#FAECE7" />
+          ) : (
+            <Text style={styles.saveButtonText}>{notaId ? 'Salvar alterações' : 'Salvar nota'}</Text>
+          )}
         </TouchableOpacity>
       </View>
     </View>

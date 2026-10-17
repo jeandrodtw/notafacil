@@ -1,3 +1,5 @@
+export type StatusGarantiaApi = 'vigente' | 'vencendo' | 'vencida';
+
 export type Nota = {
     id: number;
     descricaoProduto: string;
@@ -6,7 +8,9 @@ export type Nota = {
     tempoGarantiaMeses: number;
     loja: string;
     assistenciaTecnica: string;
+    // Calculados pela API (somente leitura)
+    dataVencimento: string;
+    statusGarantia: StatusGarantiaApi;
 };
 
-export type NotaFormulario = Omit<Nota, 'id'>;
-  
+export type NotaFormulario = Omit<Nota, 'id' | 'dataVencimento' | 'statusGarantia'>;

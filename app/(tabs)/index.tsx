@@ -1,20 +1,34 @@
-import { buscarNotas } from "@/database";
+import { buscarNotas } from "@/notas";
 import type { Nota } from "@/types";
-import { calcularVencimento, statusGarantia } from "@/utils/garantia";
+import { statusGarantia } from "@/utils/garantia";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function ListagemScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [notas, setNotas] = useState<Nota[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState('');
+
+  const carregar = useCallback(async () => {
+    setCarregando(true);
+    try {
+      setNotas(await buscarNotas());
+      setErro('');
+    } catch (e: any) {
+      setErro(e.message ?? 'Não foi possível carregar as notas.');
+    } finally {
+      setCarregando(false);
+    }
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
-      setNotas(buscarNotas());
-    }, [])
+      carregar();
+    }, [carregar])
   );
 
   return (
@@ -23,33 +37,42 @@ export default function ListagemScreen() {
         <Text style={styles.headerTitle}>NotaFácil</Text>
       </View>
 
-      <FlatList
-        data={notas}
-        keyExtractor={(item) => String(item.id)}
-        contentContainerStyle={{ padding: 12 }}
-        renderItem={({ item }) => {
-          const vencimento = calcularVencimento(item.dataCompra, item.tempoGarantiaMeses);
-          const status = statusGarantia(vencimento);
+      {carregando && notas.length === 0 ? (
+        <ActivityIndicator size="large" color="#D85A30" style={{ marginTop: 40 }} />
+      ) : (
+        <FlatList
+          data={notas}
+          keyExtractor={(item) => String(item.id)}
+          contentContainerStyle={{ padding: 12 }}
+          refreshControl={
+            <RefreshControl refreshing={carregando} onRefresh={carregar} tintColor="#D85A30" />
+          }
+          ListEmptyComponent={
+            <Text style={styles.vazio}>{erro || 'Nenhuma nota cadastrada ainda.'}</Text>
+          }
+          renderItem={({ item }) => {
+            const status = statusGarantia(item.statusGarantia);
 
-          return (
-            <TouchableOpacity
-              style={styles.card}
-              onPress={() => router.push({
-                pathname: '/detalhes',
-                params: { id: String(item.id) }
-              })}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={styles.cardTitle}>{item.descricaoProduto}</Text>
-                <Text style={styles.cardSubtitle}>{item.loja}</Text>
-              </View>
-              <View style={[styles.badge, { backgroundColor: status.fundo }]}>
-                <Text style={[styles.badgeText, { color: status.cor }]}>{status.texto}</Text>
-              </View>
-            </TouchableOpacity>
-          );
-        }}
-      />
+            return (
+              <TouchableOpacity
+                style={styles.card}
+                onPress={() => router.push({
+                  pathname: '/detalhes',
+                  params: { id: String(item.id) }
+                })}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.cardTitle}>{item.descricaoProduto}</Text>
+                  <Text style={styles.cardSubtitle}>{item.loja}</Text>
+                </View>
+                <View style={[styles.badge, { backgroundColor: status.fundo }]}>
+                  <Text style={[styles.badgeText, { color: status.cor }]}>{status.texto}</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          }}
+        />
+      )}
     </View>
   );
 }
@@ -71,4 +94,5 @@ const styles = StyleSheet.create({
   cardSubtitle: { color: '#98A4C8', fontSize: 13, marginTop: 2 },
   badge: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 8, marginLeft: 8 },
   badgeText: { fontSize: 11, fontWeight: 'bold' },
+  vazio: { color: '#98A4C8', textAlign: 'center', marginTop: 40, fontSize: 14 },
 });

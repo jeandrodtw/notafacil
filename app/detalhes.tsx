@@ -1,9 +1,9 @@
-import { buscarNotaPorId } from "@/database";
+import { buscarNotaPorId, excluirNota } from "@/notas";
 import type { Nota } from "@/types";
-import { calcularVencimento, formatarData, statusGarantia } from "@/utils/garantia";
+import { statusGarantia } from "@/utils/garantia";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function DetalhesScreen() {
@@ -14,14 +14,42 @@ export default function DetalhesScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      setNota(buscarNotaPorId(Number(id)));
-    }, [id])
+      buscarNotaPorId(Number(id))
+        .then(setNota)
+        .catch((e) => {
+          alert(e.message);
+          router.back();
+        });
+    }, [id, router])
   );
 
-  if (!nota) return null;
+  function confirmarExclusao() {
+    Alert.alert('Excluir nota', 'Deseja excluir esta nota? Essa ação não pode ser desfeita.', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Excluir',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await excluirNota(Number(id));
+            router.back();
+          } catch (e: any) {
+            alert(e.message);
+          }
+        },
+      },
+    ]);
+  }
 
-  const vencimento = calcularVencimento(nota.dataCompra, nota.tempoGarantiaMeses);
-  const status = statusGarantia(vencimento);
+  if (!nota) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center' }]}>
+        <ActivityIndicator size="large" color="#D85A30" />
+      </View>
+    );
+  }
+
+  const status = statusGarantia(nota.statusGarantia);
 
   return (
     <View style={styles.container}>
@@ -52,9 +80,13 @@ export default function DetalhesScreen() {
 
         <Linha rotulo='Data da compra' valor={nota.dataCompra || '-'} />
         <Linha rotulo='Garantia' valor={`${nota.tempoGarantiaMeses} meses`} />
-        <Linha rotulo='Vence em' valor={formatarData(vencimento)} />
+        <Linha rotulo='Vence em' valor={nota.dataVencimento || '-'} />
         <Linha rotulo='Loja' valor={nota.loja || '-'} />
         <Linha rotulo='Assistência' valor={nota.assistenciaTecnica || '-'} />
+
+        <TouchableOpacity style={styles.deleteButton} onPress={confirmarExclusao}>
+          <Text style={styles.deleteButtonText}>Excluir nota</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -85,4 +117,9 @@ const styles = StyleSheet.create({
   linha: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#223564' },
   linhaRotulo: { color: '#98A4C8', fontSize: 13 },
   linhaValor: { color: '#F0F2FA', fontSize: 13 },
+  deleteButton: {
+    borderWidth: 1, borderColor: '#E24B4A', borderRadius: 8, padding: 14,
+    alignItems: 'center', marginTop: 24,
+  },
+  deleteButtonText: { color: '#E24B4A', fontWeight: 'bold', fontSize: 15 },
 });
