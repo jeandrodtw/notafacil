@@ -1,9 +1,14 @@
-import { atualizarNota, buscarNotaPorId, inserirNota } from "@/database";
-import * as ImagePicker from "expo-image-picker";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
-import { Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { atualizarNota, buscarNotaPorId, criarNota } from '@/notasApi';
+import * as ImagePicker from 'expo-image-picker';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import {
+  ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, ScrollView,
+  StyleSheet, Text, TextInput, TouchableOpacity, View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const DATA_VALIDA = /^\d{2}\/\d{2}\/\d{4}$/;
 
 export default function CadastroScreen() {
   const router = useRouter();
@@ -12,102 +17,151 @@ export default function CadastroScreen() {
   const notaId = id ? Number(id) : null;
 
   const [descricaoProduto, setDescricaoProduto] = useState('');
-  const [fotoUri, setFotoUri] = useState<string | null>(null);
   const [dataCompra, setDataCompra] = useState('');
   const [tempoGarantiaMeses, setTempoGarantiaMeses] = useState('');
   const [loja, setLoja] = useState('');
   const [assistenciaTecnica, setAssistenciaTecnica] = useState('');
+  const [fotoUri, setFotoUri] = useState<string | null>(null);
+  const [carregando, setCarregando] = useState(!!notaId);
+  const [salvando, setSalvando] = useState(false);
 
+  // Modo edição: busca a nota na API e preenche o formulário
   useEffect(() => {
-    if (notaId) {
-      const nota = buscarNotaPorId(notaId);
-      if (nota) {
-        setDescricaoProduto(nota.descricaoProduto);
-        setFotoUri(nota.fotoUri);
-        setDataCompra(nota.dataCompra);
-        setTempoGarantiaMeses(String(nota.tempoGarantiaMeses));
-        setLoja(nota.loja);
-        setAssistenciaTecnica(nota.assistenciaTecnica);
-      }
-    }
+    if (!notaId) return;
+    buscarNotaPorId(notaId)
+      .then((n) => {
+        setDescricaoProduto(n.descricaoProduto);
+        setDataCompra(n.dataCompra);
+        setTempoGarantiaMeses(String(n.tempoGarantiaMeses));
+        setLoja(n.loja);
+        setAssistenciaTecnica(n.assistenciaTecnica ?? '');
+        setFotoUri(n.fotoUri);
+      })
+      .catch((e) =>
+        Alert.alert('Erro', e.message, [{ text: 'Voltar', onPress: () => router.back() }])
+      )
+      .finally(() => setCarregando(false));
   }, [notaId]);
 
-  async function tirarFoto() {
-    const permissao = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permissao.granted) {
-      alert('É preciso permitir o acesso à câmera.');
-      return;
+  async function escolherFoto(origem: 'camera' | 'galeria') {
+    if (origem === 'camera') {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert('Permissão negada', 'Libere o acesso à câmera nas configurações do celular.');
+        return;
+      }
     }
-    const resultado = await ImagePicker.launchCameraAsync({ quality: 0.6 });
-    if (!resultado.canceled) {
-      setFotoUri(resultado.assets[0].uri);
-    }
+    const opcoes: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 0.7 };
+    const r =
+      origem === 'camera'
+        ? await ImagePicker.launchCameraAsync(opcoes)
+        : await ImagePicker.launchImageLibraryAsync(opcoes);
+    if (!r.canceled) setFotoUri(r.assets[0].uri);
   }
 
-  function salvarNota() {
-    if (!descricaoProduto || !loja) {
-      alert('Preencha ao menos a descrição e a loja.');
+  function validar(): string {
+    if (!descricaoProduto.trim()) return 'Informe a descrição do produto.';
+    if (!loja.trim()) return 'Informe a loja.';
+    if (!DATA_VALIDA.test(dataCompra)) return 'A data deve estar no formato dd/mm/aaaa.';
+    if (tempoGarantiaMeses && isNaN(Number(tempoGarantiaMeses))) return 'A garantia deve ser um número de meses.';
+    return '';
+  }
+
+  async function salvarNota() {
+    const mensagem = validar();
+    if (mensagem) {
+      Alert.alert('Atenção', mensagem);
       return;
     }
     const dados = {
-      descricaoProduto,
-      fotoUri,
+      descricaoProduto: descricaoProduto.trim(),
       dataCompra,
       tempoGarantiaMeses: Number(tempoGarantiaMeses) || 0,
-      loja,
-      assistenciaTecnica,
+      loja: loja.trim(),
+      assistenciaTecnica: assistenciaTecnica.trim(),
+      fotoUri,
     };
-    if (notaId) {
-      atualizarNota(notaId, dados);
-    } else {
-      inserirNota(dados);
+    setSalvando(true);
+    try {
+      if (notaId) await atualizarNota(notaId, dados);
+      else await criarNota(dados);
+      Alert.alert('Pronto!', notaId ? 'Nota atualizada.' : 'Nota salva.', [
+        { text: 'OK', onPress: () => router.back() },
+      ]);
+    } catch (e: any) {
+      Alert.alert('Não foi possível salvar', e.message);
+    } finally {
+      setSalvando(false);
     }
-    router.back();
+  }
+
+  if (carregando) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center' }]}>
+        <ActivityIndicator size="large" color="#D85A30" />
+      </View>
+    );
   }
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.backButton}>{' < '}</Text>
+          <Text style={styles.backButton}>{'< '}</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{notaId ? 'Editar nota' : 'Nova nota'}</Text>
       </View>
-
-      <View style={{ padding: 16 }}>
-        <TouchableOpacity style={styles.photoBox} onPress={tirarFoto}>
-          {fotoUri ? (
-            <Image source={{ uri: fotoUri }} style={styles.photoPreview} />
-          ) : (
-            <Text style={styles.photoText}>Fotografar nota fiscal</Text>
-          )}
-        </TouchableOpacity>
+      <ScrollView
+        contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 24 }}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={styles.label}>Foto da nota fiscal</Text>
+        {fotoUri && <Image source={{ uri: fotoUri }} style={styles.foto} />}
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          <TouchableOpacity style={styles.botaoFoto} onPress={() => escolherFoto('camera')}>
+            <Text style={styles.botaoFotoTexto}>Tirar foto</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.botaoFoto} onPress={() => escolherFoto('galeria')}>
+            <Text style={styles.botaoFotoTexto}>Galeria</Text>
+          </TouchableOpacity>
+        </View>
 
         <Text style={styles.label}>Descrição do produto</Text>
         <TextInput style={styles.input} value={descricaoProduto} onChangeText={setDescricaoProduto}
-          placeholder='Ex: Televisão 50 polegadas' placeholderTextColor='#5C6AA0' />
+          placeholder="Ex: Televisão 50 polegadas" placeholderTextColor="#5C6AA0" />
 
         <Text style={styles.label}>Data da compra</Text>
         <TextInput style={styles.input} value={dataCompra} onChangeText={setDataCompra}
-          placeholder='dd/mm/aaaa' placeholderTextColor='#5C6AA0' />
+          placeholder="dd/mm/aaaa" keyboardType="numbers-and-punctuation" placeholderTextColor="#5C6AA0" />
 
         <Text style={styles.label}>Tempo de garantia (meses)</Text>
         <TextInput style={styles.input} value={tempoGarantiaMeses} onChangeText={setTempoGarantiaMeses}
-          placeholder='Ex: 12' keyboardType='numeric' placeholderTextColor='#5C6AA0' />
+          placeholder="Ex: 12" keyboardType="numeric" placeholderTextColor="#5C6AA0" />
 
         <Text style={styles.label}>Loja</Text>
         <TextInput style={styles.input} value={loja} onChangeText={setLoja}
-          placeholder='Ex: Eletro Sul' placeholderTextColor='#5C6AA0' />
+          placeholder="Ex: Eletro Sul" placeholderTextColor="#5C6AA0" />
 
         <Text style={styles.label}>Assistência técnica (opcional)</Text>
         <TextInput style={styles.input} value={assistenciaTecnica} onChangeText={setAssistenciaTecnica}
-          placeholder='Endereço ou contato' placeholderTextColor='#5C6AA0' />
+          placeholder="Endereço ou contato" placeholderTextColor="#5C6AA0" />
 
-        <TouchableOpacity style={styles.saveButton} onPress={salvarNota}>
-          <Text style={styles.saveButtonText}>{notaId ? 'Salvar alterações' : 'Salvar nota'}</Text>
+        <TouchableOpacity
+          style={[styles.saveButton, salvando && { opacity: 0.6 }]}
+          onPress={salvarNota}
+          disabled={salvando}
+        >
+          {salvando ? (
+            <ActivityIndicator color="#FAECE7" />
+          ) : (
+            <Text style={styles.saveButtonText}>{notaId ? 'Salvar alterações' : 'Salvar nota'}</Text>
+          )}
         </TouchableOpacity>
-      </View>
-    </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -119,21 +173,21 @@ const styles = StyleSheet.create({
   },
   backButton: { color: '#FAECE7', fontSize: 20, fontWeight: 'bold', marginRight: 8 },
   headerTitle: { color: '#FAECE7', fontSize: 20, fontWeight: 'bold' },
-  photoBox: {
-    height: 140, borderRadius: 10, borderWidth: 1, borderColor: '#223564',
-    borderStyle: 'dashed', backgroundColor: '#16264A',
-    alignItems: 'center', justifyContent: 'center', marginBottom: 16, overflow: 'hidden',
-  },
-  photoPreview: { width: '100%', height: '100%' },
-  photoText: { color: '#5C6AA0', fontSize: 14 },
   label: { color: '#98A4C8', fontSize: 13, marginTop: 12, marginBottom: 4 },
   input: {
     borderWidth: 1, borderColor: '#223564', borderRadius: 8,
     padding: 10, color: '#F0F2FA', backgroundColor: '#16264A',
   },
+  foto: { width: '100%', height: 180, borderRadius: 8, marginBottom: 10, backgroundColor: '#16264A' },
+  botaoFoto: {
+    flex: 1, borderWidth: 1, borderColor: '#D85A30', borderRadius: 8,
+    padding: 10, alignItems: 'center',
+  },
+
+  botaoFotoTexto: { color: '#FAECE7', fontWeight: 'bold' },
   saveButton: {
     backgroundColor: '#D85A30', borderRadius: 8, padding: 14,
-    alignItems: 'center', marginTop: 20,
+    alignItems: 'center', marginTop: 24,
   },
   saveButtonText: { color: '#FAECE7', fontWeight: 'bold', fontSize: 15 },
 });
