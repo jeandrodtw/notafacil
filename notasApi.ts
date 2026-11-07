@@ -1,25 +1,39 @@
 import { requisicao } from '@/api';
 import type { Nota, NotaFormulario, StatusGarantia } from '@/types';
+import { File } from 'expo-file-system';
+
+// Foto recém-tirada pela câmera é um arquivo local (file://...).
+// Foto que já veio da API é uma URL http(s) e não precisa ser reenviada.
+function fotoLocal(uri: string | null): uri is string {
+    return !!uri && !uri.startsWith('http');
+}
 
 // Monta o corpo multipart (necessário para enviar a foto)
-function montarForm(dados: NotaFormulario): FormData {
-    const form = new FormData();
-    form.append('descricaoProduto', dados.descricaoProduto);
-    form.append('dataCompra', dados.dataCompra);
-    form.append('tempoGarantiaMeses', String(dados.tempoGarantiaMeses));
-    form.append('loja', dados.loja);
-    form.append('assistenciaTecnica', dados.assistenciaTecnica);
-
-    // Só envia a foto se for um arquivo local novo (não uma URL que já veio da API)
-    if (dados.fotoUri && !dados.fotoUri.startsWith('http')) {
-        form.append('fotoUri', {
-            uri: dados.fotoUri,
-            name: 'nota.jpg',
-            type: 'image/jpeg',
-        } as any);
+function montarForm(nota: NotaFormulario): BodyInit {
+    if (!fotoLocal(nota.fotoUri)) {
+        return JSON.stringify({
+            descricaoProduto: nota.descricaoProduto,
+            // Reenviar a URL atual mantém a foto; null remove
+            fotoUri: nota.fotoUri,
+            dataCompra: nota.dataCompra,
+            tempoGarantiaMeses: nota.tempoGarantiaMeses,
+            loja: nota.loja,
+            assistenciaTecnica: nota.assistenciaTecnica,
+        });
     }
+
+    const form = new FormData();
+    form.append('descricaoProduto', nota.descricaoProduto);
+    form.append('dataCompra', nota.dataCompra);
+    form.append('tempoGarantiaMeses', String(nota.tempoGarantiaMeses));
+    form.append('loja', nota.loja);
+    form.append('assistenciaTecnica', nota.assistenciaTecnica);
+    // O fetch do Expo não aceita o formato antigo { uri, name, type }:
+    // o arquivo precisa ir como Blob. O File do expo-file-system é um Blob.
+    form.append('fotoUri', new File(nota.fotoUri), 'nota.jpg');
     return form;
 }
+
 
 export function buscarNotas(busca?: string, status?: StatusGarantia): Promise<Nota[]> {
     const params: string[] = [];
@@ -38,7 +52,7 @@ export function criarNota(dados: NotaFormulario): Promise<Nota> {
 }
 
 export function atualizarNota(id: number, dados: NotaFormulario): Promise<Nota> {
-    return requisicao<Nota>(`/notas/${id}/`, { method: 'PATCH', body: montarForm(dados) });
+    return requisicao<Nota>(`/notas/${id}/`, { method: 'PUT', body: montarForm(dados) });
 }
 
 export async function excluirNota(id: number): Promise<void> {
